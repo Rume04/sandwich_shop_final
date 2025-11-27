@@ -54,28 +54,57 @@ class _OrderScreenState extends State<OrderScreen> {
   }
 
   void _addToCart() {
-    if (_quantity > 0) {
-      final Sandwich sandwich = Sandwich(
-        type: _selectedSandwichType,
-        isFootlong: _isFootlong,
-        breadType: _selectedBreadType,
-      );
+    if (_quantity <= 0) return;
 
-      setState(() {
-        _cart.addItem(sandwich, quantity: _quantity);
-      });
+    final Sandwich sandwich = Sandwich(
+      type: _selectedSandwichType,
+      isFootlong: _isFootlong,
+      breadType: _selectedBreadType,
+    );
 
-      String sizeText;
-      if (_isFootlong) {
-        sizeText = 'footlong';
-      } else {
-        sizeText = 'six-inch';
+    // capture previous quantity so Undo can revert
+    final int previousQuantity = _findQuantityFor(sandwich);
+
+    setState(() {
+      _cart.addItem(sandwich, quantity: _quantity);
+    });
+
+    final String sizeText = _isFootlong ? 'footlong' : 'six-inch';
+    final String confirmationMessage =
+        'Added $_quantity $sizeText ${sandwich.name} sandwich(es) on ${_selectedBreadType.name} bread to cart';
+
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    scaffoldMessenger.clearSnackBars();
+    scaffoldMessenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          confirmationMessage,
+          semanticsLabel: confirmationMessage,
+        ),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'UNDO',
+          onPressed: () {
+            // revert to previous quantity (0 means remove)
+            setState(() {
+              _cart.updateQuantity(sandwich, previousQuantity);
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  int _findQuantityFor(Sandwich sandwich) {
+    for (final item in _cart.items) {
+      if (item.sandwich.type == sandwich.type &&
+          item.sandwich.isFootlong == sandwich.isFootlong &&
+          item.sandwich.breadType == sandwich.breadType) {
+        return item.quantity;
       }
-      String confirmationMessage =
-          'Added $_quantity $sizeText ${sandwich.name} sandwich(es) on ${_selectedBreadType.name} bread to cart';
-
-      debugPrint(confirmationMessage);
     }
+    return 0;
   }
 
   VoidCallback? _getAddToCartCallback() {
